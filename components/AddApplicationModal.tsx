@@ -174,9 +174,10 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
     try {
       await onSubmit({
         ...formData,
-        date_applied: formData.date_applied || null,
-        interview_date: formData.interview_date || null,
-        interview_time: formData.interview_time || null,
+        date_applied: formData.date_applied || undefined,
+interview_date: formData.interview_date || undefined,
+interview_time: formData.interview_time || undefined,
+
       });
 
       // Reset form
