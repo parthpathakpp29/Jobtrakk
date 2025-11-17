@@ -19,7 +19,7 @@ export default function Home() {
     }
   }, [user, loading, router])
 
-  // Show loading skeleton while checking auth state
+  
   return (
     <div className="min-h-screen p-8 flex items-center justify-center bg-zinc-50 dark:bg-black">
       <div className="max-w-7xl mx-auto space-y-8 w-full">

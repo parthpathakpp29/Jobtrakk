@@ -1,70 +1,61 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request: req,
-  })
-
+  const res = NextResponse.next();
+  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return req.cookies.getAll()
+          return req.cookies.getAll().map(cookie => ({
+            name: cookie.name,
+            value: cookie.value
+          }))
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options)
+            res.cookies.set(name, value, options)
           })
         },
       },
     }
   )
 
-  // Refresh session if expired - required for Server Components
+  // Get current session
   const {
     data: { session },
-  } = await supabase.auth.getSession()
+  } = await supabase.auth.getSession();
 
-  // Define route types
-  const isAuthPage =
-    req.nextUrl.pathname.startsWith("/login") ||
-    req.nextUrl.pathname.startsWith("/signup")
+  const path = req.nextUrl.pathname;
 
-  const isPublicPage =
-    req.nextUrl.pathname === "/" ||
-    req.nextUrl.pathname.startsWith("/api") ||
-    req.nextUrl.pathname.startsWith("/auth/callback") ||
-    req.nextUrl.pathname.startsWith("/_next") ||
-    req.nextUrl.pathname.startsWith("/favicon")
+  const authPages = ["/login", "/signup"];
 
-  // Redirect authenticated users away from auth pages
-  if (session && isAuthPage) {
-    return NextResponse.redirect(new URL("/dashboard", req.url))
+  
+  if (session && authPages.includes(path)) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  // Protect dashboard and application routes
-  if (!session && !isPublicPage && !isAuthPage) {
-    const redirectUrl = new URL("/login", req.url)
-    redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
+  // Not logged in trying to access dashboard -> redirect to login
+  if (!session && path.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  return supabaseResponse
+  return res;
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
+     * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files (public folder)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};

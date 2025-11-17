@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type ApplicationFormData, type ApplicationStatus, STATUS_CONFIG } from "@/types"
-import { Loader2 } from "lucide-react"
-import { motion } from "framer-motion"
+import { Loader2, Sparkles, Link as LinkIcon, AlertCircle } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 
 interface AddApplicationModalProps {
   open: boolean
@@ -20,6 +21,11 @@ interface AddApplicationModalProps {
 
 export default function AddApplicationModal({ open, onClose, onSubmit }: AddApplicationModalProps) {
   const [loading, setLoading] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [jobUrl, setJobUrl] = useState("")
+  const [jobText, setJobText] = useState("")
+  const [parseError, setParseError] = useState("")
+  const [parseMode, setParseMode] = useState<"url" | "text">("url") // Toggle between URL and text
   const [formData, setFormData] = useState<ApplicationFormData>({
     company_name: "",
     job_title: "",
@@ -30,18 +36,150 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
     application_url: "",
     date_applied: "",
     notes: "",
-      interview_date: "",
-        interview_time: "",
-        interviewer_name: "",
-        interview_link: "",
-        interview_notes: "",
+    interview_date: "",
+    interview_time: "",
+    interviewer_name: "",
+    interview_link: "",
+    interview_notes: "",
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const handleAutoFill = async () => {
+    if (parseMode === "url") {
+      await handleUrlParse();
+    } else {
+      await handleTextParse();
+    }
+  };
+
+  const handleUrlParse = async () => {
+    if (!jobUrl.trim()) {
+      toast.error("Please enter a job URL");
+      return;
+    }
+
     try {
-      await onSubmit(formData)
+      new URL(jobUrl);
+    } catch {
+      toast.error("Please enter a valid URL (must start with http:// or https://)");
+      return;
+    }
+
+    setParsing(true);
+    setParseError("");
+
+    try {
+      console.log("Fetching job data from URL:", jobUrl);
+
+      const response = await fetch("/api/parse-job-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: jobUrl }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Failed to parse job URL");
+      }
+
+      if (!data.company_name && !data.job_title) {
+        throw new Error("Could not extract job details from this URL. Try pasting the job text instead.");
+      }
+
+      setFormData({
+        ...formData,
+        company_name: data.company_name || "",
+        job_title: data.job_title || "",
+        location: data.location || "",
+        application_url: data.application_url || jobUrl,
+        salary_min: data.salary_min || undefined,
+        salary_max: data.salary_max || undefined,
+        notes: data.notes || "",
+      });
+
+      toast.success("Job details auto-filled! ✨");
+      setJobUrl("");
+      setParseError("");
+    } catch (error: any) {
+      console.error("URL Parse error:", error);
+      const errorMessage = error.message || "Failed to parse job URL.";
+      setParseError(errorMessage + " Try switching to 'Paste Text' mode.");
+      toast.error(errorMessage);
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleTextParse = async () => {
+    if (!jobText.trim()) {
+      toast.error("Please paste job description text");
+      return;
+    }
+
+    if (jobText.trim().length < 50) {
+      toast.error("Please paste more text (at least 50 characters)");
+      return;
+    }
+
+    setParsing(true);
+    setParseError("");
+
+    try {
+      console.log("Parsing pasted text, length:", jobText.length);
+
+      const response = await fetch("/api/parse-job-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: jobText }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Failed to parse job text");
+      }
+
+      if (!data.company_name && !data.job_title) {
+        throw new Error("Could not extract job details from the pasted text. Please check the content.");
+      }
+
+      setFormData({
+        ...formData,
+        company_name: data.company_name || "",
+        job_title: data.job_title || "",
+        location: data.location || "",
+        application_url: data.application_url || formData.application_url,
+        salary_min: data.salary_min || undefined,
+        salary_max: data.salary_max || undefined,
+        notes: data.notes || "",
+      });
+
+      toast.success("Job details auto-filled! ✨");
+      setJobText("");
+      setParseError("");
+    } catch (error: any) {
+      console.error("Text Parse error:", error);
+      const errorMessage = error.message || "Failed to parse job text.";
+      setParseError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await onSubmit({
+        ...formData,
+        date_applied: formData.date_applied || null,
+        interview_date: formData.interview_date || null,
+        interview_time: formData.interview_time || null,
+      });
+
+      // Reset form
       setFormData({
         company_name: "",
         job_title: "",
@@ -52,19 +190,23 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
         application_url: "",
         date_applied: "",
         notes: "",
-          interview_date: "",
+        interview_date: "",
         interview_time: "",
         interviewer_name: "",
         interview_link: "",
         interview_notes: "",
-      })
-      onClose()
+      });
+
+      setJobUrl("");
+      setParseError("");
+      onClose();
     } catch (error) {
-      console.error("Error submitting application:", error)
+      console.error("Error submitting application:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -107,6 +249,148 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
             onSubmit={handleSubmit}
             className="space-y-4"
           >
+            {/* AI Auto-Fill Section */}
+            <motion.div
+              variants={itemVariants}
+              className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border border-purple-200/50"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-slate-800">AI Auto-Fill</h3>
+              </div>
+
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParseMode("text");
+                    setParseError("");
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${parseMode === "text"
+                      ? "bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+                      : "bg-white/60 text-slate-600 hover:bg-white"
+                    }`}
+                >
+                  Paste Text
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParseMode("url");
+                    setParseError("");
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${parseMode === "url"
+                      ? "bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+                      : "bg-white/60 text-slate-600 hover:bg-white"
+                    }`}
+                >
+                  From URL
+                </button>
+              </div>
+
+
+              {parseMode === "url" ? (
+                <>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Paste a job posting URL and let AI extract all the details
+                  </p>
+
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        type="url"
+                        value={jobUrl}
+                        onChange={(e) => {
+                          setJobUrl(e.target.value);
+                          setParseError("");
+                        }}
+                        placeholder="https://linkedin.com/jobs/view/..."
+                        disabled={parsing}
+                        className="pl-10 bg-white/80 border-purple-200/50 focus:border-purple-400"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleAutoFill}
+                      disabled={parsing || !jobUrl.trim()}
+                      className="bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+                    >
+                      {parsing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Parsing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Parse
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Copy the entire job posting and paste it below - works with ANY site!
+                  </p>
+
+                  <Textarea
+                    value={jobText}
+                    onChange={(e) => {
+                      setJobText(e.target.value);
+                      setParseError("");
+                    }}
+                    placeholder="Paste the entire job posting here (company, title, description, requirements, etc.)..."
+                    disabled={parsing}
+                    rows={6}
+                    className="mb-2 bg-white/80 border-purple-200/50 focus:border-purple-400"
+                  />
+
+                  <Button
+                    type="button"
+                    onClick={handleAutoFill}
+                    disabled={parsing || !jobText.trim() || jobText.trim().length < 50}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {parsing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Parsing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Parse Text
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+
+              <AnimatePresence>
+                {parseError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg"
+                  >
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{parseError}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex-1 border-t border-slate-300"></div>
+                <span>or enter manually below</span>
+                <div className="flex-1 border-t border-slate-300"></div>
+              </div>
+            </motion.div>
+
             {/* Company Name */}
             <motion.div variants={itemVariants}>
               <Label htmlFor="company_name" className="text-slate-700 font-semibold">
@@ -244,10 +528,10 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
               />
             </motion.div>
 
-             <motion.div variants={itemVariants} className="pt-2 border-t border-blue-100/60 mt-4">
+            {/* Interview Details */}
+            <motion.div variants={itemVariants} className="pt-2 border-t border-blue-100/60 mt-4">
               <h3 className="text-base font-semibold text-slate-800 mb-2">Interview Details</h3>
 
-              {/* Row: Interview Date & Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="interview_date" className="text-slate-700 font-semibold">
@@ -276,7 +560,6 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
                 </div>
               </div>
 
-              {/* Interviewer Name */}
               <div className="mt-3">
                 <Label htmlFor="interviewer_name" className="text-slate-700 font-semibold">
                   Interviewer Name
@@ -290,7 +573,6 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
                 />
               </div>
 
-              {/* Interview Link */}
               <div className="mt-3">
                 <Label htmlFor="interview_link" className="text-slate-700 font-semibold">
                   Interview Link
@@ -305,7 +587,6 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
                 />
               </div>
 
-              {/* Interview Notes */}
               <div className="mt-3">
                 <Label htmlFor="interview_notes" className="text-slate-700 font-semibold">
                   Interview Notes
