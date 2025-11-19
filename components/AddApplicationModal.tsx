@@ -34,7 +34,7 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
     salary_min: undefined,
     salary_max: undefined,
     application_url: "",
-    date_applied: "",
+    date_applied: new Date().toISOString().split('T')[0], 
     notes: "",
     interview_date: "",
     interview_time: "",
@@ -518,13 +518,15 @@ interview_time: formData.interview_time || undefined,
             </motion.div>
 
             {/* Date Applied */}
-            <motion.div variants={itemVariants}>
+           <motion.div variants={itemVariants}>
+              {/* 2. UPDATE: Add asterisk (*) to label */}
               <Label htmlFor="date_applied" className="text-slate-700 font-semibold">
-                Date Applied
+                Date Applied *
               </Label>
               <Input
                 id="date_applied"
                 type="date"
+                required // 3. UPDATE: Add required attribute
                 value={formData.date_applied}
                 onChange={(e) => setFormData({ ...formData, date_applied: e.target.value })}
                 className="mt-1.5 bg-white/60 backdrop-blur border-blue-200/50 focus:border-blue-400 focus:bg-white/80 transition-all"
