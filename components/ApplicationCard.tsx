@@ -48,7 +48,7 @@ export default function ApplicationCard({
   return (
     <motion.div
       className={`
-        bg-white/90 backdrop-blur-md rounded-xl border border-blue-200/60 p-4 
+        bg-white/90 backdrop-blur-md rounded-xl border border-blue-200/60 p-3 sm:p-4 
         hover:shadow-2xl hover:border-blue-300/80 transition-all duration-300 group relative
         ${isDragging ? "opacity-50 shadow-xl scale-95" : ""}
       `}
@@ -61,162 +61,124 @@ export default function ApplicationCard({
     >
       {/* Header */}
       <div className="flex items-start gap-2 mb-3">
-        <motion.div whileHover={{ x: 2 }}>
-          <GripVertical className="w-4 h-4 text-blue-300 mt-1 shrink-0" />
+        {/* Hide drag handle on mobile since touch drag is different/harder, show on sm+ */}
+        <motion.div whileHover={{ x: 2 }} className="hidden sm:block">
+          <GripVertical className="w-4 h-4 text-blue-300 mt-1 shrink-0 cursor-grab active:cursor-grabbing" />
         </motion.div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-slate-900 text-sm mb-1 line-clamp-2">{application.job_title}</h3>
+          <h3 className="font-semibold text-slate-900 text-sm mb-0.5 line-clamp-2">{application.job_title}</h3>
           <p className="text-slate-600 font-medium text-xs truncate">{application.company_name}</p>
         </div>
       </div>
 
-      {/* Action Icons */}
+      {/* Action Icons - Always visible on Mobile, Hover only on Desktop */}
       <motion.div
-        className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity mb-3 flex-wrap"
+        className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mb-3 flex-wrap"
         initial={{ y: -5 }}
         animate={{ y: 0 }}
       >
-          {hasDocuments && onViewDocuments && (
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onViewDocuments(application)
-                }}
-                className="h-7 w-7 p-0 hover:bg-green-100/80 backdrop-blur"
-                title="View Saved Documents"
-              >
-                <FileCheck className="w-3 h-3 text-green-600" />
-              </Button>
-            </motion.div>
-          )}
-          {onGenerateAI && (
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onGenerateAI(application)
-                }}
-                className="h-7 w-7 p-0 hover:bg-purple-100/80 backdrop-blur"
-                title="Generate AI Documents"
-              >
-                <Sparkles className="w-3 h-3 text-purple-600" />
-              </Button>
-            </motion.div>
-          )}
-          {onEdit && (
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onEdit(application)}
-                className="h-7 w-7 p-0 hover:bg-blue-100/80 backdrop-blur"
-              >
-                <Edit className="w-3 h-3" />
-              </Button>
-            </motion.div>
-          )}
-          {onDelete && (
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete(application.id)}
-                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-100/80 backdrop-blur"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </motion.div>
-          )}
-        </motion.div>
+        {hasDocuments && onViewDocuments && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onViewDocuments(application)
+            }}
+            className="h-7 w-7 p-0 hover:bg-green-100/80 backdrop-blur bg-green-50/50 sm:bg-transparent"
+            title="View Saved Documents"
+          >
+            <FileCheck className="w-3.5 h-3.5 text-green-600" />
+          </Button>
+        )}
+        {onGenerateAI && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onGenerateAI(application)
+            }}
+            className="h-7 w-7 p-0 hover:bg-purple-100/80 backdrop-blur bg-purple-50/50 sm:bg-transparent"
+            title="Generate AI Documents"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+          </Button>
+        )}
+        {onEdit && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(application)}
+            className="h-7 w-7 p-0 hover:bg-blue-100/80 backdrop-blur bg-blue-50/50 sm:bg-transparent"
+          >
+            <Edit className="w-3.5 h-3.5 text-blue-600" />
+          </Button>
+        )}
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(application.id)}
+            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-100/80 backdrop-blur bg-red-50/50 sm:bg-transparent"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
+      </motion.div>
 
       {/* Details */}
       <div className="space-y-1.5 mb-3">
         {application.location && (
-          <motion.div
-            initial={{ opacity: 0, x: -5 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex items-center gap-2 text-xs text-slate-600"
-          >
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <MapPin className="w-3 h-3 shrink-0 text-blue-500" />
-            <span className="truncate">{application.location}</span>
-          </motion.div>
+            <span className="truncate max-w-[150px]">{application.location}</span>
+          </div>
         )}
 
         {formatSalary(application.salary_min, application.salary_max) && (
-          <motion.div
-            initial={{ opacity: 0, x: -5 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 }}
-            className="flex items-center gap-2 text-xs text-slate-600"
-          >
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <DollarSign className="w-3 h-3 shrink-0 text-green-500" />
             <span>{formatSalary(application.salary_min, application.salary_max)}</span>
-          </motion.div>
+          </div>
         )}
 
         {application.date_applied && (
-          <motion.div
-            initial={{ opacity: 0, x: -5 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center gap-2 text-xs text-slate-600"
-          >
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <Calendar className="w-3 h-3 shrink-0 text-amber-500" />
-            <span>Applied {format(new Date(application.date_applied), "MMM d")}</span>
-          </motion.div>
+            <span>Applied {format(new Date(application.date_applied), "MMM d, yyyy")}</span>
+          </div>
         )}
       </div>
 
       {/* AI Documents Badge */}
       {hasDocuments && (
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.25 }}
-          className="mb-3"
-        >
-          <Badge className="bg-linear-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-200 text-xs shadow-sm hover:shadow-md transition-shadow">
+        <div className="mb-3">
+          <Badge className="bg-linear-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-200 text-[10px] sm:text-xs shadow-sm hover:shadow-md transition-shadow px-2 py-0.5">
             <FileCheck className="w-3 h-3 mr-1" />
             AI Docs Ready
           </Badge>
-        </motion.div>
+        </div>
       )}
 
       {/* Notes Preview */}
       {application.notes && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-xs text-slate-600 mb-3 line-clamp-2 bg-linear-to-r from-blue-50/60 to-cyan-50/60 backdrop-blur-sm p-2.5 rounded-lg border border-blue-100/50 hover:border-blue-200/80 transition-colors"
-        >
+        <p className="text-xs text-slate-600 mb-3 line-clamp-2 bg-linear-to-r from-blue-50/60 to-cyan-50/60 backdrop-blur-sm p-2 rounded-lg border border-blue-100/50 hover:border-blue-200/80 transition-colors">
           {application.notes}
-        </motion.p>
+        </p>
       )}
 
       {/* Footer */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.35 }}
-        className="flex items-center justify-between pt-3 border-t border-blue-100/40"
-      >
+      <div className="flex items-center justify-between pt-3 border-t border-blue-100/40">
         <Badge
-          className={`${statusConfig.bgColor} ${statusConfig.color} border ${statusConfig.borderColor} text-xs font-medium shadow-sm`}
+          className={`${statusConfig.bgColor} ${statusConfig.color} border ${statusConfig.borderColor} text-[10px] sm:text-xs font-medium shadow-sm`}
         >
           {statusConfig.label}
         </Badge>
 
         {application.application_url && (
-          <motion.a
-            whileHover={{ x: 2 }}
+          <a
             href={application.application_url}
             target="_blank"
             rel="noopener noreferrer"
@@ -225,9 +187,9 @@ export default function ApplicationCard({
           >
             <span>View</span>
             <ExternalLink className="w-3 h-3" />
-          </motion.a>
+          </a>
         )}
-      </motion.div>
+      </div>
     </motion.div>
   )
 }

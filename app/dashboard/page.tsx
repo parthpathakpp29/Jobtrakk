@@ -20,8 +20,6 @@ import { toast } from "sonner"
 import { Bell } from "lucide-react"
 import ChatBot from "@/components/ChatBot";
 
-
-
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -57,13 +55,11 @@ export default function Dashboard() {
     }
   }, [user])
 
-
   useEffect(() => {
     if (Notification.permission !== "granted") {
       Notification.requestPermission();
     }
   }, []);
-
 
   const showNotificationOrToast = (title: string, body: string) => {
     const id = Date.now().toString();
@@ -79,25 +75,21 @@ export default function Dashboard() {
     }
   };
 
-
   // 🔹 Schedule interview notifications
   useEffect(() => {
     if (!applications.length) return;
-
     const now = new Date();
 
     applications.forEach((app) => {
       if (app.interview_date && app.interview_time) {
-        // Combine date + time into one Date object
         const interviewDateTime = new Date(`${app.interview_date}T${app.interview_time}`);
         const timeUntilInterview = interviewDateTime.getTime() - now.getTime();
 
-        if (timeUntilInterview <= 0) return; // Skip past interviews
+        if (timeUntilInterview <= 0) return;
 
         const oneHourBefore = timeUntilInterview - 60 * 60 * 1000;
         const oneDayBefore = timeUntilInterview - 24 * 60 * 60 * 1000;
 
-        // 🔸 Notify 1 day before
         if (oneDayBefore > 0) {
           setTimeout(() => {
             showNotificationOrToast(
@@ -107,20 +99,17 @@ export default function Dashboard() {
           }, oneDayBefore);
         }
 
-        // 🔸 Notify 1 hour before
         if (oneHourBefore > 0) {
           setTimeout(() => {
             showNotificationOrToast(
               "Interview Reminder 🕒",
-              `Your interview for ${app.job_title} at ${app.company_name} starts in 1 hour. ${app.interview_link ? "Join: " + app.interview_link : ""
-              }`
+              `Your interview for ${app.job_title} at ${app.company_name} starts in 1 hour.`
             );
           }, oneHourBefore);
         }
       }
     });
   }, [applications]);
-
 
   const fetchApplications = async () => {
     try {
@@ -139,9 +128,7 @@ export default function Dashboard() {
   const fetchDocuments = async () => {
     try {
       const { data, error } = await supabase.from("generated_documents").select("application_id")
-
       if (error) throw error
-
       const map: Record<string, boolean> = {}
       data?.forEach((doc) => {
         map[doc.application_id] = true
@@ -218,7 +205,6 @@ export default function Dashboard() {
   const handleSaveAIDocuments = async (coverLetter: string, referralEmail: string) => {
     if (!selectedApp) return
     try {
-      // Check if document already exists
       const { data: existingDoc } = await supabase
         .from("generated_documents")
         .select("id")
@@ -226,7 +212,6 @@ export default function Dashboard() {
         .single()
 
       if (existingDoc) {
-        // Update existing document
         const { error } = await supabase
           .from("generated_documents")
           .update({
@@ -237,7 +222,6 @@ export default function Dashboard() {
 
         if (error) throw error
       } else {
-        // Insert new document
         const { error } = await supabase.from("generated_documents").insert({
           application_id: selectedApp.id,
           user_id: user?.id,
@@ -259,13 +243,11 @@ export default function Dashboard() {
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, application: Application) => {
     setDraggedItem(application)
     e.dataTransfer.effectAllowed = "move"
-
     setTimeout(() => {
       const target = e.currentTarget as HTMLElement
       if (target) target.classList.add("dragging-card")
     }, 0)
   }
-
 
   const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     const target = e.currentTarget as HTMLElement
@@ -273,7 +255,6 @@ export default function Dashboard() {
     setDraggedItem(null)
     setDragOverColumn(null)
   }
-
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -338,7 +319,6 @@ export default function Dashboard() {
   }
 
   const columns: ApplicationStatus[] = [
-
     "applied",
     "referred",
     "screening",
@@ -424,13 +404,10 @@ export default function Dashboard() {
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
                 </button>
-
-                {/* 🔽 Dropdown Panel */}
                 {isNotifOpen && (
                   <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white/90 backdrop-blur border border-blue-100 shadow-lg rounded-xl z-50">
                     <div className="p-3 border-b border-blue-100 flex justify-between items-center">
                       <h3 className="font-semibold text-slate-800 text-sm">Notifications</h3>
-
                       {notifications.length > 0 && (
                         <button
                           onClick={() => setNotifications([])}
@@ -440,7 +417,6 @@ export default function Dashboard() {
                         </button>
                       )}
                     </div>
-
                     {notifications.length === 0 ? (
                       <div className="p-4 text-center text-sm text-slate-500">
                         No new notifications
@@ -460,8 +436,7 @@ export default function Dashboard() {
                                   )
                                 )
                               }
-                              className={`p-3 border-b border-blue-50 last:border-none cursor-pointer hover:bg-blue-50/60 transition ${n.seen ? "opacity-70" : ""
-                                }`}
+                              className={`p-3 border-b border-blue-50 last:border-none cursor-pointer hover:bg-blue-50/60 transition ${n.seen ? "opacity-70" : ""}`}
                             >
                               <p className="text-sm font-medium text-slate-800">{n.title}</p>
                               <p className="text-xs text-slate-600 mt-1">{n.message}</p>
@@ -475,48 +450,33 @@ export default function Dashboard() {
               <div className="flex justify-content items-center " >
                 <LogoutButton />
               </div>
-
             </div>
           </div>
         </div>
       </header>
 
       <main className="relative z-10 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        {/* Responsive Grid: 2 Cols on Mobile, 4 on Desktop */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           {[
-            {
-              label: "Total Applications",
-              value: stats.total,
-              icon: Briefcase,
-              color: "bg-blue-400/20 border-blue-200/40",
-            },
-            {
-              label: "Active",
-              value: stats.active,
-              icon: TrendingUp,
-              color: "bg-emerald-400/20 border-emerald-200/40",
-            },
-            {
-              label: "Interviews",
-              value: stats.interviews,
-              icon: Calendar,
-              color: "bg-purple-400/20 border-purple-200/40",
-            },
+            { label: "Total Apps", value: stats.total, icon: Briefcase, color: "bg-blue-400/20 border-blue-200/40" },
+            { label: "Active", value: stats.active, icon: TrendingUp, color: "bg-emerald-400/20 border-emerald-200/40" },
+            { label: "Interviews", value: stats.interviews, icon: Calendar, color: "bg-purple-400/20 border-purple-200/40" },
             { label: "Offers", value: stats.offers, icon: CheckCircle, color: "bg-orange-400/20 border-orange-200/40" },
           ].map((stat, idx) => {
             const Icon = stat.icon
             return (
               <div
                 key={idx}
-                className="glass-strong rounded-2xl p-4 sm:p-6 hover:scale-[1.02] transition-all duration-300"
+                className="glass-strong rounded-2xl p-3 sm:p-6 hover:scale-[1.02] transition-all duration-300"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm text-slate-500 font-medium mb-1 sm:mb-2 truncate">{stat.label}</p>
-                    <p className="text-2xl sm:text-4xl font-bold text-slate-900">{stat.value}</p>
+                    <p className="text-[10px] sm:text-sm text-slate-500 font-medium mb-1 truncate">{stat.label}</p>
+                    <p className="text-xl sm:text-4xl font-bold text-slate-900">{stat.value}</p>
                   </div>
                   <div className={`${stat.color} backdrop-blur-sm p-2 sm:p-4 rounded-xl border flex-shrink-0`}>
-                    <Icon className="w-5 sm:w-6 h-5 sm:h-6 text-slate-700" />
+                    <Icon className="w-4 sm:w-6 h-4 sm:h-6 text-slate-700" />
                   </div>
                 </div>
               </div>
@@ -529,7 +489,7 @@ export default function Dashboard() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search applications by company, job title, location..."
+              placeholder="Search applications..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-10 py-2.5 sm:py-3 glass-strong rounded-xl border border-blue-200/40 focus:border-blue-300/60 focus:ring-2 focus:ring-blue-400/30 outline-none text-sm sm:text-base transition-all"
@@ -567,32 +527,33 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="kanban-board-scroll flex gap-3 sm:gap-4 overflow-x-auto pb-4">
+          /* Mobile: Horizontal Snap Scroll. Desktop: Standard Flex */
+          <div className="kanban-board-scroll flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory sm:snap-none px-4 sm:px-0 -mx-4 sm:mx-0">
             {columns.map((status) => {
               const statusApps = getApplicationsByStatus(status)
               const config = STATUS_CONFIG[status]
               const isDragOver = dragOverColumn === status
               return (
-                <div key={status} className="shrink-0 grow-0 w-[200px] sm:w-[240px] md:w-[280px] lg:w-[320px]">
+                /* Column Width: 85% of Viewport on Mobile, Fixed on Desktop */
+                <div key={status} className="shrink-0 grow-0 w-[85vw] sm:w-[300px] snap-center">
                   <div
-                    className={`glass-strong rounded-xl transition-all duration-200 shadow-lg h-[calc(100vh-16rem)] sm:h-[calc(100vh-14rem)] ${isDragOver ? "ring-2 ring-blue-400/50 scale-[1.01]" : "hover:shadow-xl"}`}
+                    className={`glass-strong rounded-xl transition-all duration-200 shadow-lg h-[calc(100vh-18rem)] sm:h-[calc(100vh-14rem)] flex flex-col ${isDragOver ? "ring-2 ring-blue-400/50 scale-[1.01]" : "hover:shadow-xl"}`}
                     onDragOver={handleDragOver}
                     onDragEnter={() => handleDragEnter(status)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, status)}
                   >
-                    <div className="p-3 sm:p-4 pb-2 sm:pb-3 border-b border-blue-100/30 bg-white/40 rounded-t-xl">
+                    <div className="p-3 sm:p-4 pb-2 sm:pb-3 border-b border-blue-100/30 bg-white/40 rounded-t-xl shrink-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-slate-900 text-xs sm:text-sm truncate">{config.label}</h3>
+                        <h3 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{config.label}</h3>
                         <span className="text-xs font-medium text-slate-600 bg-blue-50/80 px-2 py-1 rounded-full border border-blue-100/50 shadow-sm flex-shrink-0">
                           {statusApps.length}
                         </span>
                       </div>
                     </div>
-                    <div className="p-3 sm:p-4 pt-2 sm:pt-3">
+                    <div className="p-3 sm:p-4 pt-2 sm:pt-3 flex-1 overflow-hidden">
                       <div
-                        className="kanban-column-scroll space-y-3 pr-2"
-                        style={{ maxHeight: "calc(100vh - 300px)", minHeight: "240px", overflowY: "auto" }}
+                        className="kanban-column-scroll space-y-3 pr-2 h-full overflow-y-auto"
                       >
                         {statusApps.map((app) => (
                           <div
