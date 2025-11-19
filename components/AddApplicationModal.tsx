@@ -25,7 +25,7 @@ export default function AddApplicationModal({ open, onClose, onSubmit }: AddAppl
   const [jobUrl, setJobUrl] = useState("")
   const [jobText, setJobText] = useState("")
   const [parseError, setParseError] = useState("")
-  const [parseMode, setParseMode] = useState<"url" | "text">("url") // Toggle between URL and text
+  const [parseMode, setParseMode] = useState<"text" | "url">("text") 
   const [formData, setFormData] = useState<ApplicationFormData>({
     company_name: "",
     job_title: "",
@@ -207,6 +207,8 @@ interview_time: formData.interview_time || undefined,
       setLoading(false);
     }
   };
+
+  
 
 
   const containerVariants = {

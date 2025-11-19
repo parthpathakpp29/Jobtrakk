@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Sparkles, Copy, Download, CheckCircle2, FileText, Mail } from "lucide-react";
+import { Loader2, Sparkles, Copy, Download, CheckCircle2, FileText, Mail, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Application } from "@/types";
+import { supabase } from "@/lib/supabaseClient";
 
 interface AIDocumentGeneratorProps {
   open: boolean;
@@ -27,10 +28,92 @@ export default function AIDocumentGenerator({
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState(application.notes || "");
   const [loading, setLoading] = useState(false);
+  const [loadingResume, setLoadingResume] = useState(false);
+  const [savingResume, setSavingResume] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [referralEmail, setReferralEmail] = useState("");
   const [copiedCover, setCopiedCover] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
+
+  // Load saved resume when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadSavedResume();
+    }
+  }, [open]);
+
+  // Helper function to get auth headers
+  const getAuthHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      throw new Error("Not authenticated");
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    };
+  };
+
+  const loadSavedResume = async () => {
+    setLoadingResume(true);
+    try {
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch("/api/get-resume", {
+        method: "GET",
+        headers,
+      });
+      
+      if (!response.ok) {
+        console.log("Failed to load resume, status:", response.status);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.resume_text) {
+        setResumeText(data.resume_text);
+        toast.success("Resume loaded! ✅");
+      }
+    } catch (error) {
+      console.error("Error loading resume:", error);
+      // Don't show error toast, just fail silently
+    } finally {
+      setLoadingResume(false);
+    }
+  };
+
+  const handleSaveResume = async () => {
+    if (!resumeText.trim()) {
+      toast.error("Please enter your resume text first");
+      return;
+    }
+
+    setSavingResume(true);
+    try {
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch("/api/save-resume", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ text: resumeText }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save resume");
+      }
+
+      toast.success("Resume saved! It will auto-fill next time ✅");
+    } catch (error: any) {
+      console.error("Error saving resume:", error);
+      toast.error(error.message || "Failed to save resume");
+    } finally {
+      setSavingResume(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!resumeText.trim()) {
@@ -128,21 +211,52 @@ export default function AIDocumentGenerator({
         {!coverLetter ? (
           // Input Form
           <div className="space-y-6 mt-4">
-            {/* Resume Input */}
+            {/* Resume Input with Save Feature */}
             <div>
-              <Label htmlFor="resume" className="text-base font-semibold mb-2 block">
-                📄 Your Resume
-              </Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="resume" className="text-base font-semibold">
+                  📄 Your Resume
+                </Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadSavedResume}
+                    disabled={loadingResume}
+                  >
+                    {loadingResume ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                    )}
+                    Reload
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveResume}
+                    disabled={savingResume || !resumeText.trim()}
+                  >
+                    {savingResume ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-1" />
+                    )}
+                    Save Resume
+                  </Button>
+                </div>
+              </div>
               <Textarea
                 id="resume"
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
-                placeholder="Paste your resume text here..."
+                placeholder="Paste your resume text here... (or it will auto-load if saved)"
                 rows={12}
                 className="font-mono text-sm"
+                disabled={loadingResume}
               />
               <p className="text-xs text-slate-500 mt-1.5">
-                Tip: Copy from your PDF/Word resume and paste here
+                💡 Tip: Click "Save Resume" to auto-fill it next time!
               </p>
             </div>
 
@@ -301,12 +415,18 @@ export default function AIDocumentGenerator({
               >
                 Regenerate
               </Button>
-              <Button variant="outline"
-  className="border-blue-300 text-slate-700 hover:bg-blue-50/40 rounded-xl backdrop-blur-sm cursor-pointer"onClick={onClose}>
+              <Button 
+                variant="outline"
+                className="border-blue-300 text-slate-700 hover:bg-blue-50/40 rounded-xl backdrop-blur-sm cursor-pointer"
+                onClick={onClose}
+              >
                 Close
               </Button>
               {onSave && (
-                <Button onClick={handleSave} className="bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer">
+                <Button 
+                  onClick={handleSave} 
+                  className="bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                >
                   Save to Application
                 </Button>
               )}

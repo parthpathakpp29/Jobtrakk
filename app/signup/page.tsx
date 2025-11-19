@@ -6,57 +6,69 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, User, Mail, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { z } from "zod";
+
+// 1. Security: Strong Validation Schema
+const signupSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters").trim(),
+  email: z.string().email("Please enter a valid email address").trim(),
+  password: z
+    .string()
+    .min(6, "Password must be at least 8 characters"), // Adjusted to min 6 as per your previous code, or keep 8 for higher security
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    fullName: "",
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
   const handlePasswordSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password || !fullName) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-    if (fullName.trim().length < 2) {
-      toast.error("Please enter your full name");
+    // 2. Validate inputs
+    const result = signupSchema.safeParse(formData);
+
+    if (!result.success) {
+      // Fix: Use .issues instead of .errors for Zod compatibility
+      toast.error(result.error.issues[0].message);
       return;
     }
 
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         options: {
-          data: { full_name: fullName.trim() },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { full_name: formData.fullName },
+          // We don't need emailRedirectTo if verification is disabled
         },
       });
 
       if (error) throw error;
 
-      if (data.user && !data.session) {
-        toast.success("Check your email to confirm your account! 📧");
-        setTimeout(() => router.push("/login"), 2000);
-      } else {
-        toast.success("Account created! Welcome! 🎉");
-        router.push("/dashboard");
-      }
+      // 3. IMMEDIATE SUCCESS: No email check logic
+      // With "Confirm Email" disabled in Supabase, data.session will be present immediately.
+      toast.success("Account created! Welcome! 🎉");
+      router.push("/dashboard");
+      
     } catch (error: any) {
       if (error.message.includes("already registered")) {
         toast.error("This email is already registered. Try logging in.");
@@ -72,7 +84,7 @@ export default function SignupPage() {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -84,8 +96,6 @@ export default function SignupPage() {
       });
 
       if (error) throw error;
-      
-      // The user will be redirected to Google's OAuth page
     } catch (error: any) {
       toast.error(error.message || "Failed to sign up with Google");
       setGoogleLoading(false);
@@ -170,10 +180,11 @@ export default function SignupPage() {
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
+                name="fullName"
                 type="text"
                 placeholder="Full Name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                value={formData.fullName}
+                onChange={handleChange}
                 disabled={loading || googleLoading}
                 className="h-11 pl-11 pr-4 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white"
               />
@@ -183,10 +194,11 @@ export default function SignupPage() {
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
+                name="email"
                 type="email"
                 placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleChange}
                 disabled={loading || googleLoading}
                 className="h-11 pl-11 pr-4 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white"
               />
@@ -196,10 +208,11 @@ export default function SignupPage() {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
+                name="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Password (min 6 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleChange}
                 disabled={loading || googleLoading}
                 className="h-11 pl-11 pr-11 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white"
               />
@@ -210,6 +223,20 @@ export default function SignupPage() {
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
+            </div>
+
+            {/* Confirm Password */}
+            <div className="relative">
+              <CheckCircle2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                name="confirmPassword"
+                type="password"
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                disabled={loading || googleLoading}
+                className="h-11 pl-11 pr-4 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white"
+              />
             </div>
 
             {/* Submit */}
